@@ -4,8 +4,12 @@ import matplotlib
 matplotlib.use('Agg')
 import http.server
 import socketserver
+import webbrowser
+import traceback
+import matplotlib.pyplot as plt
 
 def execute_plotting_code(user_code):
+    """Execute user's plotting code and return the plot image if successful"""
     try:
         # Create a namespace for execution
         namespace = {}
@@ -13,11 +17,9 @@ def execute_plotting_code(user_code):
         # Execute user code in the namespace
         exec(user_code, namespace)
         
-        # Get the figure from the namespace and save it
-        import matplotlib.pyplot as plt
+        # Save the plot to buffer
         buffer = BytesIO()
         plt.savefig(buffer, format='png', bbox_inches='tight', dpi=300)
-        plt.close('all')
         
         # Encode the image
         buffer.seek(0)
@@ -25,18 +27,20 @@ def execute_plotting_code(user_code):
         buffer.close()
         graphic = base64.b64encode(image_png).decode('utf-8')
         
+        plt.close('all')
+        
         return {
             'success': True,
             'image': graphic
         }
-    except Exception as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
-    finally:
+    except Exception:
         plt.close('all')
-
+        # Print the traceback directly to terminal
+        print("\nError in user code:")
+        traceback.print_exc()
+        return {
+            'success': False
+        }
 
 user_code = ""
 with open('main.py', 'r') as file:
@@ -52,7 +56,7 @@ if result['success']:
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Plot View</title>
+            <title>Plot Result</title>
             <style>
                 body {{
                     display: flex;
@@ -95,4 +99,5 @@ if result['success']:
             httpd.server_close()
             print("Server stopped.")
 else:
-    print(f"Error generating plot: {result['error']}")
+    # Just exit if there was an error (error message already printed)
+    exit(1)
